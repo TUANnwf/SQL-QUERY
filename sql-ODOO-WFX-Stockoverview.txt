@@ -1,0 +1,183 @@
+	SELECT
+		stock.Category,
+		stock.[Stock Type],
+		stock.POType,
+		stock.ArticleCode,
+		stock.ArticleName,
+		stock.ProductSubCatCode,
+		stock.LocationCode,
+		stock.SiteCode,
+		stock.SiteName,
+		Stock.ColorName,
+		Stock.SizeName,
+		stock.[Shade/lot],
+	CASE
+			
+			WHEN isnull( ( stock.[Shade/lot] ), '' ) = '' THEN
+			stock.ArticleCode + '#' + isnull( Stock.OrderNum, '' ) + '#' + isnull( stock.GRNNo, '' ) ELSE stock.[Shade/lot] 
+		END [Shade/lot2],
+	Stock.OrderNum,
+	stock.Supplier,
+	stock.UOM,
+	stock.OCNum,
+	stock.GRNNo,
+	stock.GRNDate,
+	stock.CurrencyCode,
+	stock.AgeingDays,
+	c.CompanyName [Buyer],
+	style.ArticleName [Style Name],
+	GRNPrice [GRNRate],
+	SUM ( stock.Value ) [CurrentValue],
+	SUM ( stock.Quantity ) [Quantity],
+	( SUM ( stock.Value ) / ( SUM ( stock.Unitsi ) + SUM ( stock.UnitsFreezedi ) ) ) [CurrentRate],
+	stock.CompanyName,
+	Case when co.aa ='YENVB SUB' then 'YENVB-WESTFIELD FACTORY'
+	when co.aa ='YEN OF LONDON SUB' then 'YEN OF LONDON FACTORY'
+	when co.aa ='EXCEL SUB' then 'NLD YK-EXCEL FACTORY'
+	when co.aa ='NAM&CO LONDON SUB' then 'NAM&CO LONDON FACTORY'
+	when co.aa ='DONG TAI SUB' then 'DONG TAI FACTORY'
+	else stock.FactoryName end FactoryName 
+
+---	stock.FactoryName 
+	
+
+	,co.aa CompanySub
+FROM
+	(
+	SELECT
+		t.TranslatedString [Category],
+	( CASE sh.OCNum WHEN '' THEN 'Free stock' ELSE 'Reserved stock' END ) [Stock Type],
+	ISNULL( CASE IsNull( po.MaterialClassificationCode, 0 ) WHEN 0 THEN 'Local' ELSE 'Imported' END, '' ) AS POType,
+	art.ArticleCode,
+	art.ArticleName,
+	art.ProductSubCatCode,
+	sh.ColorCode,
+	sh.SizeCode,
+	sh.ColorName,
+	Sh.SizeName,
+	sh.LocationCode,
+	st.SiteCode,
+	st.SiteName,
+	sh.Remarks [Shade/lot],
+	oc.OrderRefNum [OrderNum],
+	comp.CompanyName [Supplier],
+	sh.UOM,
+	( CASE WHEN sh.OCNum <> '' THEN sh.OCNum ELSE grnd.OCNum END ) OCNum,
+	ISNULL( grn.TranNum, cor.TranNum ) [GRNNo],
+	com.CompanyName,
+	CONVERT ( NVARCHAR ( 10 ), grnd.CreatedOn, 103 ) [GRNDate],
+	( sh.Units ) [unitsi],
+	( sh.UnitsFreezed ) [UnitsFreezedi],
+	( ldp.Landedprice* ( ISNULL( sh.Units, 0 ) + ISNULL( sh.UnitsFreezed, 0 ) ) ) [Value],
+	grnd.CurrencyCode,
+	grnd.Price [GRNPrice],
+	DATEDIFF( d, ISNULL( grnd.SourcedDate, grnd.CreatedOn ), GETDATE( ) ) [AgeingDays],
+	( sh.Units + sh.UnitsFreezed ) [Quantity],
+	(
+	CASE
+			
+			WHEN ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) IN ( 'DT', 'DT-', 'DTK' ) THEN
+					'DONG TAI FACTORY' 
+					WHEN ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) IN ( 'YEN', 'MAY' ) 
+						AND ( st.siteName NOT LIKE '%YEN VB%' ) THEN
+							'YEN OF LONDON FACTORY' 
+							WHEN ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) IN ( 'WF', 'YENVB' ) 
+								OR st.siteName LIKE '%YEN VB%' THEN
+									'YENVB-WESTFIELD FACTORY' /*WHEN (CASE (CASE WHEN LEFT( st.siteName,3) IN ('NSG','NWF','YVN','NVN')THEN SUBSTRING( st.siteName,5,3) ELSE LEFT( st.siteName,3) END) WHEN 'EXC' THEN 'EXL' ELSE (CASE 
+WHEN LEFT( st.siteName,3) IN ('NSG','NWF','YVN','NVN')THEN SUBSTRING( st.siteName,5,3) ELSE LEFT( st.siteName,3) END) END) = 'NLD' THEN 'NAM&CO LONDON FACTORY'*/
+									
+								WHEN ( ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) = 'NLD' AND st.siteName LIKE '%NLD YK%' ) THEN
+					'NLD YK-EXCEL FACTORY' 
+				WHEN ( ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) = 'NLD' AND st.siteName NOT LIKE '%NLD YK%' ) THEN
+		'NAM&CO LONDON FACTORY' 
+	WHEN ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) = 'NOL' THEN
+	'NAM OF LONDON FACTORY' /*WHEN (CASE (CASE WHEN LEFT( st.siteName,3) IN ('NSG','NWF','YVN','NVN')THEN SUBSTRING( st.siteName,5,3) ELSE LEFT( st.siteName,3) END) WHEN 'EXC' THEN 'EXL' ELSE (CASE 
+WHEN LEFT( st.siteName,3) IN ('NSG','NWF','YVN','NVN')THEN SUBSTRING( st.siteName,5,3) ELSE LEFT( st.siteName,3) END) END) = 'EXL' THEN 'EXCEL FACTORY'*/
+	
+	WHEN ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) IN ( 'CEN', 'NVN', 'HPO' ) THEN
+			'HAI PHONG OFFICE' 
+		WHEN ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) = 'NT' THEN
+	'NAM TAI Warehouse' 
+	WHEN ( CASE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) WHEN 'EXC' THEN 'EXL' ELSE ( CASE WHEN LEFT ( st.siteName, 3 ) IN ( 'NSG', 'NWF', 'YVN', 'NVN' ) THEN SUBSTRING ( st.siteName, 5, 3 ) ELSE LEFT ( st.siteName, 3 ) END ) END ) IN ( 'RET', 'NAM' ) THEN
+			'NAM&CO VIETNAM COMPANY' ELSE st.siteName 
+		END 
+			) FactoryName 
+	FROM
+		xtStock sh ( NOLOCK )
+		JOIN xtStockGRNDetail grnd ( NOLOCK ) ON grnd.ID = sh.SourceID
+		JOIN xtArticle art ( NOLOCK ) ON art.ID = sh.ArticleID
+		JOIN xtTranslation t ( NOLOCK ) ON t.ObjectName = 'xtProductCat' 
+		AND t.ObjectKey = art.ProductCatCode 
+		AND t.PageName = 'xtProductCat' 
+		AND t.LanguageCode = 'en'
+		JOIN xtSite st ( NOLOCK ) ON st.CompanyCode = sh.CompanyCode 
+		AND st.SiteCode = sh.SiteCode
+		JOIN xtStockLandedPrice ldp ( NOLOCK ) ON ldp.Sourceid = sh.SourceID 
+		AND ldp.LocalSourceID = sh.LocalSourceID 
+		AND ldp.ArticleID = sh.ArticleID
+		LEFT JOIN xtStockGRN grn ( NOLOCK ) ON grnd.StockGRNID > 0 
+		AND grn.ID = grnd.StockGRNID
+		LEFT JOIN xtStockCorrectionDetail cord ( NOLOCK ) ON grnd.StockGRNID < 0 
+		AND grnd.ID = grnd.LocalSourceID 
+		AND cord.ID = grnd.DetailID
+		LEFT JOIN xtStockCorrection cor ( NOLOCK ) ON cor.ID = cord.StockCorrectionID 
+		AND cor.[Type] = 3 
+		AND cor.Status = 'Closed'
+		LEFT JOIN xtOrder oc ( NOLOCK ) ON oc.OrderCode = grnd.SubDocCode 
+		AND oc.OrderCode > 0 
+		AND oc.OCType = - 1 
+		AND oc.BuyerFolderCode <> 'Cancelled' 
+		AND oc.BuyerFolderCode <> 'Unconfirmed' 
+		AND oc.RevisedCode = ( SELECT MAX ( x.RevisedCode ) FROM xtOrder x ( NOLOCK ) WHERE x.CompanyCode = oc.CompanyCode AND x.OrderCode = oc.OrderCode )
+		LEFT JOIN xtPO po ( NOLOCK ) ON po.OrderID = oc.ID
+		LEFT JOIN xtCompany comp ( NOLOCK ) ON comp.MemberCompanyCode = po.SupplierCompanyCode
+		LEFT JOIN XTCOMPANY com ( NOLOCK ) ON com.MemberCompanyCode = sh.MemberCompanyCode 
+	WHERE
+		st.SiteName NOT LIKE '%Opening%' 
+		AND ( sh.Units + sh.UnitsFreezed ) > 0 ---(t.TranslatedString ='Fixed Asset' or t.TranslatedString ='Miscellaneous' or st.SiteName Like '%MACHINE%' or st.SiteName Like '%OFFICE EQUIPMENT%' or st.SiteName Like '%TOOL%') and ProductSubCatCode<>'Semifinised'
+		
+	) stock
+	LEFT JOIN xtOCOrderData ocd ( NOLOCK ) ON ocd.BarOCNum = stock.OCNum
+	LEFT JOIN xtCompany c ( NOLOCK ) ON c.MemberCompanyCode = ocd.BuyerCompanyCode
+	LEFT JOIN xtArticle style ( NOLOCK ) ON style.ID = ocd.StyleID 
+	left join (
+SELECT   case when CompanyName like '%-%' then SUBSTRING(CompanyName, 1, CHARINDEX('-', CompanyName) - 1)  else CompanyName end aa,CompanyName
+from [dbo].[vwModelCompanyDetail] 
+where CompanyName like '%sub%'
+group by case when CompanyName like '%-%' then SUBSTRING(CompanyName, 1, CHARINDEX('-', CompanyName) - 1)  else CompanyName end,CompanyName) co  on co.CompanyName=stock.CompanyName
+WHERE
+	LEFT ( stock.ArticleCode, 1 ) IN ( 'M', 'A' ) 
+-- 	AND stock.FactoryName = 'DONG TAI FACTORY' 
+	--	AND stock.[Shade/lot] = 'SERIESNO1'
+-- 	AND stock.ArticleCode = 'M0501100011'
+-- 	AND stock.GRNNo = 'R-23-DTTOOL1N-292'
+	---and  stock.CompanyName= 'YENVB SUB-MAY THOI TRANG ANH QUOC 5'
+--	and stock.FactoryName ='MAQ-MAY ANH QUOC 2 MACHINE WH'
+GROUP BY
+	stock.Category,
+	stock.[Stock Type],
+	stock.POType,
+	stock.ArticleCode,
+	stock.ArticleName,
+	stock.ProductSubCatCode,
+	stock.ColorCode,
+	stock.SizeCode,
+	stock.LocationCode,
+	stock.SiteCode,
+	stock.SiteName,
+	stock.[Shade/lot],
+	Stock.OrderNum,
+	stock.Supplier,
+	stock.UOM,
+	stock.OCNum,
+	stock.GRNNo,
+	stock.GRNDate,
+	stock.CompanyName,
+	stock.CurrencyCode,
+	stock.AgeingDays,
+	c.CompanyName,
+	style.ArticleName,
+	GRNPrice,
+	Stock.ColorName,
+	Stock.SizeName,
+	stock.FactoryName ,co.aa
